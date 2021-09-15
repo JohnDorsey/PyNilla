@@ -23,9 +23,16 @@ def deint(value, base, alphabet="0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJK
         return [alphabet[digit] for digit in result]
     else:
         return "".join(alphabet[digit] for digit in result)
+        
+assert int(deint(314159, 16), 16) == 314159
     
     
-def concat_ints(values):
+def concat_ints(*values):
+    if len(values) == 1:
+        if isinstance(values[0], list):
+            values = values[0]
+        else:
+            raise TypeError("can't expand the single arg.")
     result = 0
     for value in values:
         if value < 0:
@@ -33,12 +40,29 @@ def concat_ints(values):
         result <<= value.bit_length()
         result += value
     return result
+    
+assert concat_ints(314, 159) == int(bin(314)[2:] + bin(159)[2:], 2)
 
 
 def join(data, delimiter=""):
     return delimiter.join(str(item) for item in data)
     
+assert "|".join(str(digit) for digit in [3,1,4,1,5,9]) == join([3,1,4,1,5,9], delimiter="|")
 
+    
+    
+def _gen_lstrip(string, substring):
+    stringItemGen = (item for item in string)
+    memory = []
+    for pair in izip_longest(stringItemGen, substring):
+        memory.append(pair[0])
+        if pair[1] is None:
+            #successful match.
+            del memory[:]
+            break
+        if pair[0] != pair[1]:
+            break
+    return itertools.chain()
     
     
 def lstrip(string, substring):
@@ -47,38 +71,45 @@ def lstrip(string, substring):
             return string[len(substring):]
         return string
     else:
-        stringItemGen = (item for item in string)
-        memory = []
-        for pair in izip_longest(stringItemGen, substring):
-            memory.append(pair[0])
-            if pair[1] is None:
-                #successful match.
-                del memory[:]
-                break
-            if pair[0] != pair[1]:
-                break
-        return itertools.chain()
+        if len(substring) == 0:
+            return string
+        return _gen_lstrip(string, substring)
+            
+
+assert lstrip("red=green", "red=") == "green"
+        
+        
+        
+        
+def _gen_rstrip(string, substring):
+    buffer = deque([None for i in range(len(substring))])
+    cancellationProgress = 0
+    for item in string:
+        if item == substring[cancellationProgress]:
+            cancellationProgress += 1
+            if cancellationProgress == len(substring):
+                return
+        buffer.append(item)
+        outputItem = buffer.popleft()
+        if outputItem is not None:
+            yield outputItem
         
         
 def rstrip(string, substring):
     if hasattr(string, "__getitem__"):
         if string[-len(substring):] == substring:
-            return string[-len(substring):]
+            return string[:-len(substring)]
+        return string
     else:
         if len(substring) == 0:
             return string
-        buffer = deque([None for i in range(len(substring))])
-        cancellationProgress = 0
-        for item in string:
-            if item == substring[cancellationProgress]:
-                cancellationProgress += 1
-                if cancellationProgress == len(substring):
-                    return
-            buffer.append(item)
-            outputItem = buffer.popleft()
-            if outputItem is not None:
-                yield outputItem
-                
+        return _gen_rstrip(string, substring)
+            
+
+assert rstrip("blue=yellow", "=yellow") == "blue"
+        
+        
+        
 
 def multi_replace(data, *args):
     if not isinstance(data, str):
@@ -99,6 +130,7 @@ def multi_replace(data, *args):
                 data = data.replace(strToReplace, pair[1])
     return data
 
+assert multi_replace("hello, world!", [("h","1"), ("e", "2"), ("l", "3")]) == "1233o, wor3d!"
 
 
 def conditional_split(data_gen, activation_fun):
@@ -113,11 +145,13 @@ def conditional_split(data_gen, activation_fun):
         yield genBetweenSplits()
     return
     
+    
 def multi_split(data_gen, split_items):
     if len(split_items) > 3 and not isinstance(split_items, set):
         split_items = set(item for item in split_items)
     activationFun = (lambda testItem: testItem in split_items)
     return conditional_split(data_gen, activationFun)
+
 
 """
 def _split_every_gen_only(data_gen, n, stop_flag):
@@ -146,16 +180,6 @@ def split_every(data, n):
     dataItemGenList = [dataItemGen for i in range(n)]
     return izip_longest(*dataItemGenList)
     
-            
-"""
-def split_when(data, test_fun):
-    dataGen = (item for item in data)
-    stopFlag = [False]
-    while True:
-        yield _split_every_gen_only(dataGen, n, stopFlag)
-        if stopFlag[0]:
-            return
-"""
 
 
 def gen_take_only(data, count):
@@ -227,7 +251,8 @@ def find_max(data):
     
     
 """
-arbitrary base converter.
+todo:
+  arbitrary base converter.
 
 """
     
